@@ -25,6 +25,15 @@ struct Varyings {
 	UNITY_VERTEX_INPUT_INSTANCE_ID
 };
 
+void ClipLOD (float2 positionCS, float fade)
+{
+#if defined (LOD_FADE_CROSSFADE)
+	// float dither = (positionCS.y % 32) / 32;
+	float dither = InterleavedGradientNoise(positionCS.xy, 0);
+	clip(fade + (fade < 0.0 ? dither : -dither));
+#endif
+}
+
 Varyings LitPassVertex (Attributes input) {
 	Varyings output;
 	UNITY_SETUP_INSTANCE_ID(input);
@@ -40,6 +49,8 @@ Varyings LitPassVertex (Attributes input) {
 
 float4 LitPassFragment (Varyings input) : SV_TARGET {
 	UNITY_SETUP_INSTANCE_ID(input);
+	ClipLOD(input.positionCS.xy, unity_LODFade.x);
+
 	float4 base = GetBase(input.baseUV);
 	#if defined(_CLIPPING)
 		clip(base.a - GetCutoff(input.baseUV));
@@ -54,13 +65,14 @@ float4 LitPassFragment (Varyings input) : SV_TARGET {
 	surface.alpha = base.a;
 	surface.metallic = GetMetallic(input.baseUV);
 	surface.smoothness = GetSmoothness(input.baseUV);
+	surface.fresnelStrength = GetFresnel(input.baseUV);
 	surface.dither = InterleavedGradientNoise(input.positionCS.xy, 0);
 	#if defined(_PREMULTIPLY_ALPHA)
 		BRDF brdf = GetBRDF(surface, true);
 	#else
 		BRDF brdf = GetBRDF(surface);
 	#endif
-	GI gi = GetGI(GI_FRAGMENT_DATA(input), surface);
+	GI gi = GetGI(GI_FRAGMENT_DATA(input), surface, brdf);
 	float3 color = GetLighting(surface, brdf, gi);
 	color += GetEmission(input.baseUV);
 	return float4(color, surface.alpha);
