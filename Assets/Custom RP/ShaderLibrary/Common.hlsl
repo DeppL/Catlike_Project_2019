@@ -17,6 +17,7 @@
 
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/UnityInstancing.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/SpaceTransforms.hlsl"
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Packing.hlsl"
 
 float Square (float x) {
 	return x * x;
@@ -24,6 +25,14 @@ float Square (float x) {
 
 float DistanceSquared(float3 pA, float3 pB) {
 	return dot(pA - pB, pA - pB);
+}
+
+float3 DecodeNormal (float4 sample, float scale) {
+#if defined (UNITY_NO_DXT5nm)
+	return UnpackNormalRGB(sample, scale);
+#else
+	return UnpackNormalmapRGorAG(sample, scale);
+#endif
 }
 
 #endif
