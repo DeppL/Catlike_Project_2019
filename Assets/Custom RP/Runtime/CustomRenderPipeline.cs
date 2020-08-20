@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.Rendering;
 
-public class CustomRenderPipeline : RenderPipeline {
+public partial class CustomRenderPipeline : RenderPipeline {
 
 	CameraRenderer renderer = new CameraRenderer();
 
@@ -18,6 +18,7 @@ public class CustomRenderPipeline : RenderPipeline {
 		this.useGPUInstancing = useGPUInstancing;
 		GraphicsSettings.useScriptableRenderPipelineBatching = useSRPBatcher;
 		GraphicsSettings.lightsUseLinearIntensity = true;
+		InitializeForEditor();
 	}
 
 	protected override void Render (
