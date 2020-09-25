@@ -34,7 +34,7 @@ void ClipLOD (float2 positionCS, float fade)
 {
 #if defined (LOD_FADE_CROSSFADE)
 	// float dither = (positionCS.y % 32) / 32;
-	float dither = InterleavedGradientNoise(positionCS.xy, 0);
+	float dither = InterleavedGradiensatNoise(positionCS.xy, 0);
 	clip(fade + (fade < 0.0 ? dither : -dither));
 #endif
 }

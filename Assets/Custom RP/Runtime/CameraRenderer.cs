@@ -6,8 +6,8 @@ public partial class CameraRenderer {
 	const string bufferName = "Render Camera";
 
 	static ShaderTagId
-		unlitShaderTagId = new ShaderTagId("SRPDefaultUnlit"),
-		litShaderTagId = new ShaderTagId("CustomLit");
+		unlitShaderTagId = new ShaderTagId ("SRPDefaultUnlit"),
+		litShaderTagId = new ShaderTagId ("CustomLit");
 
 	CommandBuffer buffer = new CommandBuffer {
 		name = bufferName
@@ -19,11 +19,11 @@ public partial class CameraRenderer {
 
 	CullingResults cullingResults;
 
-	Lighting lighting = new Lighting();
+	Lighting lighting = new Lighting ();
 
-	public void Render (
+	public void Render(
 		ScriptableRenderContext context, Camera camera,
-		bool useDynamicBatching, bool useGPUInstancing,
+		bool useDynamicBatching, bool useGPUInstancing, bool useLightsPerObject,
 		ShadowSettings shadowSettings
 	) {
 		this.context = context;
@@ -31,20 +31,22 @@ public partial class CameraRenderer {
 
 		PrepareBuffer();
 		PrepareForSceneWindow();
-		if (!Cull(shadowSettings.maxDistance)) {
+		if (!Cull (shadowSettings.maxDistance)) {
 			return;
 		}
-		
-		buffer.BeginSample(SampleName);
+
+		buffer.BeginSample (SampleName);
 		ExecuteBuffer();
-		lighting.Setup(context, cullingResults, shadowSettings);
+		lighting.Setup(context, cullingResults, shadowSettings, useLightsPerObject);
 		buffer.EndSample(SampleName);
 		Setup();
-		DrawVisibleGeometry(useDynamicBatching, useGPUInstancing);
+		DrawVisibleGeometry(
+			useDynamicBatching, useGPUInstancing, useLightsPerObject
+		);
 		DrawUnsupportedShaders();
 		DrawGizmos();
 		lighting.Cleanup();
-		Submit();
+		Submit ();
 	}
 
 	bool Cull (float maxShadowDistance) {
@@ -57,30 +59,35 @@ public partial class CameraRenderer {
 	}
 
 	void Setup () {
-		context.SetupCameraProperties(camera);
+		context.SetupCameraProperties (camera);
 		CameraClearFlags flags = camera.clearFlags;
-		buffer.ClearRenderTarget(
+		buffer.ClearRenderTarget (
 			flags <= CameraClearFlags.Depth,
 			flags == CameraClearFlags.Color,
 			flags == CameraClearFlags.Color ?
-				camera.backgroundColor.linear : Color.clear
+			camera.backgroundColor.linear : Color.clear
 		);
-		buffer.BeginSample(SampleName);
-		ExecuteBuffer();
+		buffer.BeginSample (SampleName);
+		ExecuteBuffer ();
 	}
 
 	void Submit () {
-		buffer.EndSample(SampleName);
-		ExecuteBuffer();
-		context.Submit();
+		buffer.EndSample (SampleName);
+		ExecuteBuffer ();
+		context.Submit ();
 	}
 
 	void ExecuteBuffer () {
-		context.ExecuteCommandBuffer(buffer);
-		buffer.Clear();
+		context.ExecuteCommandBuffer (buffer);
+		buffer.Clear ();
 	}
 
-	void DrawVisibleGeometry (bool useDynamicBatching, bool useGPUInstancing) {
+	void DrawVisibleGeometry(
+		bool useDynamicBatching, bool useGPUInstancing, bool useLightsPerObject
+	) {
+		PerObjectData lightsPerObjectFlags = useLightsPerObject ?
+			PerObjectData.LightData | PerObjectData.LightIndices :
+			PerObjectData.None;
 		var sortingSettings = new SortingSettings(camera) {
 			criteria = SortingCriteria.CommonOpaque
 		};
@@ -89,17 +96,19 @@ public partial class CameraRenderer {
 		) {
 			enableDynamicBatching = useDynamicBatching,
 			enableInstancing = useGPUInstancing,
-			perObjectData = PerObjectData.ReflectionProbes 
-							| PerObjectData.Lightmaps 
-							| PerObjectData.ShadowMask
-							| PerObjectData.LightProbe
-							| PerObjectData.LightProbeProxyVolume
-							| PerObjectData.OcclusionProbe 
-							| PerObjectData.OcclusionProbeProxyVolume
+			perObjectData = 
+				PerObjectData.ReflectionProbes |
+				PerObjectData.Lightmaps |
+				PerObjectData.ShadowMask |
+				PerObjectData.LightProbe |
+				PerObjectData.LightProbeProxyVolume |
+				PerObjectData.OcclusionProbe |
+				PerObjectData.OcclusionProbeProxyVolume |
+				lightsPerObjectFlags
 		};
 		drawingSettings.SetShaderPassName(1, litShaderTagId);
 
-		var filteringSettings = new FilteringSettings(RenderQueueRange.opaque);
+		var filteringSettings = new FilteringSettings (RenderQueueRange.opaque);
 
 		context.DrawRenderers(
 			cullingResults, ref drawingSettings, ref filteringSettings

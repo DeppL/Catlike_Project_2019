@@ -6,6 +6,7 @@ public class Lighting {
 
 	const string bufferName = "Lighting";
 	const int maxDirLightCount = 4, maxOtherLightCount = 64;
+	static string lightsPerObjectKeyword = "_LIGHTS_PER_OBJECT";
 
 	static int
 		dirLightCountId = Shader.PropertyToID("_DirectionalLightCount"),
@@ -43,12 +44,12 @@ public class Lighting {
 
 	public void Setup (
 		ScriptableRenderContext context, CullingResults cullingResults,
-		ShadowSettings shadowSettings
+		ShadowSettings shadowSettings, bool useLightsPerObject
 	) {
 		this.cullingResults = cullingResults;
 		buffer.BeginSample(bufferName);
 		shadows.Setup(context, cullingResults, shadowSettings);
-		SetupLights();
+		SetupLights(useLightsPerObject);
 		shadows.Render();
 		buffer.EndSample(bufferName);
 		context.ExecuteCommandBuffer(buffer);
@@ -59,35 +60,50 @@ public class Lighting {
 		shadows.Cleanup();
 	}
 
-	void SetupLights () {
+	void SetupLights (bool useLightsPerObject) {
+		NativeArray<int> indexMap = useLightsPerObject ?
+			cullingResults.GetLightIndexMap(Allocator.Temp) : default;
 		NativeArray<VisibleLight> visibleLights = cullingResults.visibleLights;
 		int dirLightCount = 0, otherLightCount = 0;
-		for (int i = 0; i < visibleLights.Length; i++) {
+		int i;
+		for (i = 0; i < visibleLights.Length; i++) {
+			int newIndex = -1;
 			VisibleLight visibleLight = visibleLights[i];
-			// if (visibleLight.lightType == LightType.Directional) {
-			// 	SetupDirectionalLight(dirLightCount++, ref visibleLight);
-			// 	if (dirLightCount >= maxDirLightCount) {
-			// 		break;
-			// 	}
-			// }
+			
 			switch (visibleLight.lightType)
 			{
 				case LightType.Directional:
 					if (dirLightCount < maxDirLightCount) {
-						SetupDirectionalLight(dirLightCount++, ref visibleLight);
+						SetupDirectionalLight(dirLightCount++, i, ref visibleLight);
 					}
 					break;
 				case LightType.Point:
 					if (otherLightCount < maxOtherLightCount) {
-						SetupPointLight(otherLightCount++, ref visibleLight);
+						newIndex = otherLightCount;
+						SetupPointLight(otherLightCount++, i, ref visibleLight);
 					}
 					break;
 				case LightType.Spot:
 					if (otherLightCount < maxOtherLightCount) {
-						SetupSpotLight(otherLightCount++, ref visibleLight);
+						newIndex = otherLightCount;
+						SetupSpotLight(otherLightCount++, i, ref visibleLight);
 					}
 					break;
 			}
+			if (useLightsPerObject) {
+				indexMap[i] = newIndex;
+			}
+		}
+		if (useLightsPerObject) {
+			for (; i < indexMap.Length; i++) {
+				indexMap[i] = -1;
+			}
+			cullingResults.SetLightIndexMap(indexMap);
+			indexMap.Dispose();
+			Shader.EnableKeyword(lightsPerObjectKeyword);
+		}
+		else {
+			Shader.DisableKeyword(lightsPerObjectKeyword);
 		}
 
 		buffer.SetGlobalInt(dirLightCountId, dirLightCount);
@@ -107,13 +123,17 @@ public class Lighting {
 		}
 	}
 
-	void SetupDirectionalLight (int index, ref VisibleLight visibleLight) {
+	void SetupDirectionalLight (
+		int index, int visibleIndex, ref VisibleLight visibleLight
+	) {
 		dirLightColors[index] = visibleLight.finalColor;
 		dirLightDirections[index] = -visibleLight.localToWorldMatrix.GetColumn(2);
 		dirLightShadowData[index] =
-			shadows.ReserveDirectionalShadows(visibleLight.light, index);
+			shadows.ReserveDirectionalShadows(visibleLight.light, visibleIndex);
 	}
-	void SetupPointLight (int index, ref VisibleLight visibleLight) {
+	void SetupPointLight (
+		int index, int visibleIndex, ref VisibleLight visibleLight
+	) {
 		otherLightColors[index] = visibleLight.finalColor;
 		Vector4 position = visibleLight.localToWorldMatrix.GetColumn(3);
 		position.w = 
@@ -121,9 +141,12 @@ public class Lighting {
 		otherLightPositions[index] = position;
 		otherLightSpotAngles[index] = new Vector4(0f, 1f);
 		Light light = visibleLight.light;
-		otherLightShadowData[index] = shadows.ReserveOtherShadows(light, index);
+		otherLightShadowData[index] = 
+			shadows.ReserveOtherShadows(light, visibleIndex);
 	}
-	void SetupSpotLight (int index, ref VisibleLight visibleLight) {
+	void SetupSpotLight (
+		int index, int visibleIndex, ref VisibleLight visibleLight
+	) {
 		otherLightColors[index] = visibleLight.finalColor;
 		Vector4 position = visibleLight.localToWorldMatrix.GetColumn(3);
 		position.w = 
@@ -139,6 +162,7 @@ public class Lighting {
 		otherLightSpotAngles[index] = new Vector4(
 			angleRangeInv, -outerCos * angleRangeInv
 		);
-		otherLightShadowData[index] = shadows.ReserveOtherShadows(light, index);
+		otherLightShadowData[index] = 
+			shadows.ReserveOtherShadows(light, visibleIndex);
 	}
 }
