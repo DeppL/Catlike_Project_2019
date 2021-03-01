@@ -254,7 +254,9 @@ struct ShadowedOtherLight {
 	void RenderDirectionalShadows (int index, int split, int tileSize) {
 		ShadowedDirectionalLight light = shadowedDirectionalLights[index];
 		var shadowSettings =
-			new ShadowDrawingSettings(cullingResults, light.visibleLightIndex);
+			new ShadowDrawingSettings(cullingResults, light.visibleLightIndex) {
+				useRenderingLayerMaskTest = true
+			};
 		int cascadeCount = settings.directional.cascadeCount;
 		int tileOffset = index * cascadeCount;
 		Vector3 ratios = settings.directional.CascadeRatios;

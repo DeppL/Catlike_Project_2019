@@ -7,6 +7,8 @@ CBUFFER_START(UnityPerDraw)
 	float4 unity_LODFade;
 	real4 unity_WorldTransformParams;
 
+	float4 unity_RenderingLayer;
+
 	real4 unity_LightData;
 	real4 unity_LightIndices[2];
 	
@@ -38,20 +40,9 @@ float4x4 glstate_matrix_projection;
 
 float3 _WorldSpaceCameraPos;
 
-struct InputConfig {
-    float2 baseUV;
-    float2 detailUV;
-	bool useMask;
-	bool useDetail;
-};
-
-InputConfig GetInputConfig (float2 baseUV, float2 detailUV = 0.0) {
-    InputConfig c;
-    c.baseUV = baseUV;
-    c.detailUV = detailUV;
-	c.useMask = false;
-	c.useDetail = false;
-    return c;
-}
+float4 unity_OrthoParams;
+float4 _ProjectionParams;
+float4 _ScreenParams;
+float4 _ZBufferParams;
 
 #endif

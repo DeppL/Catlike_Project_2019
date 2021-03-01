@@ -5,7 +5,8 @@ using UnityEngine.Rendering;
 
 partial class CameraRenderer {
 
-	partial void DrawGizmos ();
+	partial void DrawGizmosBeforeFX();
+	partial void DrawGizmosAfterFX();
 
 	partial void DrawUnsupportedShaders ();
 
@@ -28,12 +29,25 @@ partial class CameraRenderer {
 
 	string SampleName { get; set; }
 
-	partial void DrawGizmos () {
+	partial void DrawGizmosBeforeFX() {
 		if (Handles.ShouldRenderGizmos()) {
+			if (useIntermediateBuffer)
+			{
+				Draw(depthAttachmentId, BuiltinRenderTextureType.CameraTarget, true);
+				ExecuteBuffer();
+			}
 			context.DrawGizmos(camera, GizmoSubset.PreImageEffects);
-			context.DrawGizmos(camera, GizmoSubset.PostImageEffects);
 		}
 	}
+    partial void DrawGizmosAfterFX()
+    {
+		if (Handles.ShouldRenderGizmos())
+		{
+			context.DrawGizmos(camera, GizmoSubset.PostImageEffects);
+		}
+    }
+
+    
 
 	partial void DrawUnsupportedShaders () {
 		if (errorMaterial == null) {
@@ -57,6 +71,7 @@ partial class CameraRenderer {
 	partial void PrepareForSceneWindow () {
 		if (camera.cameraType == CameraType.SceneView) {
 			ScriptableRenderContext.EmitWorldGeometryForSceneView(camera);
+			useScaledRendering = false;
 		}
 	}
 

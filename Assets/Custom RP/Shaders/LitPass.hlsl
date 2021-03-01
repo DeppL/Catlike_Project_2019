@@ -18,7 +18,7 @@ struct Attributes {
 };
 
 struct Varyings {
-	float4 positionCS : SV_POSITION;
+	float4 positionCS_SS : SV_POSITION;
 	float3 positionWS : VAR_POSITION;
 	float3 normalWS : VAR_NORMAL;
 #if defined(_NORMAL_MAP)
@@ -30,22 +30,13 @@ struct Varyings {
 	UNITY_VERTEX_INPUT_INSTANCE_ID
 };
 
-void ClipLOD (float2 positionCS, float fade)
-{
-#if defined (LOD_FADE_CROSSFADE)
-	// float dither = (positionCS.y % 32) / 32;
-	float dither = InterleavedGradiensatNoise(positionCS.xy, 0);
-	clip(fade + (fade < 0.0 ? dither : -dither));
-#endif
-}
-
 Varyings LitPassVertex (Attributes input) {
 	Varyings output;
 	UNITY_SETUP_INSTANCE_ID(input);
 	UNITY_TRANSFER_INSTANCE_ID(input, output);
 	TRANSFER_GI_DATA(input, output);
 	output.positionWS = TransformObjectToWorld(input.positionOS);
-	output.positionCS = TransformWorldToHClip(output.positionWS);
+	output.positionCS_SS = TransformWorldToHClip(output.positionWS);
 	output.normalWS = TransformObjectToWorldNormal(input.normalOS);
 #if defined(_NORMAL_MAP)
 	output.tangentWS = float4(
@@ -62,8 +53,9 @@ Varyings LitPassVertex (Attributes input) {
 
 float4 LitPassFragment (Varyings input) : SV_TARGET {
 	UNITY_SETUP_INSTANCE_ID(input);
-	ClipLOD(input.positionCS.xy, unity_LODFade.x);
-	InputConfig config = GetInputConfig(input.baseUV);
+	InputConfig config = GetInputConfig(input.positionCS_SS, input.baseUV);
+	// return float4(config.fragment.depth.xxx / 20.0, 1.0);
+	ClipLOD(config.fragment, unity_LODFade.x);
 #if defined (_MASK_MAP)
 	config.useMask = true;
 #endif
@@ -96,7 +88,8 @@ float4 LitPassFragment (Varyings input) : SV_TARGET {
 	surface.occlusion = GetOcclusion(config);
 	surface.smoothness = GetSmoothness(config);
 	surface.fresnelStrength = GetFresnel(config);
-	surface.dither = InterleavedGradientNoise(input.positionCS.xy, 0);
+	surface.dither = InterleavedGradientNoise(input.positionCS_SS.xy, 0);
+	surface.renderingLayerMask = asuint(unity_RenderingLayer.x);
 	#if defined(_PREMULTIPLY_ALPHA)
 		BRDF brdf = GetBRDF(surface, true);
 	#else
@@ -105,7 +98,8 @@ float4 LitPassFragment (Varyings input) : SV_TARGET {
 	GI gi = GetGI(GI_FRAGMENT_DATA(input), surface, brdf);
 	float3 color = GetLighting(surface, brdf, gi);
 	color += GetEmission(config);
-	return float4(color, surface.alpha);
+	// return float4(color, surface.alpha);
+	return float4(color, GetFinalAlpha(surface.alpha));
 }
 
 #endif

@@ -2,7 +2,7 @@
 using UnityEngine.Rendering;
 
 [CreateAssetMenu(menuName = "Rendering/Custom Render Pipeline")]
-public class CustomRenderPipelineAsset : RenderPipelineAsset {
+public partial class CustomRenderPipelineAsset : RenderPipelineAsset {
 
 	[SerializeField]
 	bool 
@@ -14,10 +14,30 @@ public class CustomRenderPipelineAsset : RenderPipelineAsset {
 	[SerializeField]
 	ShadowSettings shadows = default;
 
+	[SerializeField]
+	PostFXSettings postFXSettings = default;
+	[SerializeField]
+	bool allowHDR = true;
+
+	public enum ColorLUTResolution { _16 = 16, _32 = 32, _64 = 64 }
+
+	[SerializeField]
+	ColorLUTResolution colorLUTResolution = ColorLUTResolution._32;
+	[SerializeField]
+	Shader cameraRendererShader = default;
+
+	[SerializeField]
+	CameraBufferSettings cameraBuffer = new CameraBufferSettings {
+		allowHDR = true,
+		renderScale = 1f
+	};
+
 	protected override RenderPipeline CreatePipeline () {
 		return new CustomRenderPipeline(
+			cameraBuffer,
 			useDynamicBatching, useGPUInstancing, useSRPBatcher, 
-			useLightsPerObject, shadows
+			useLightsPerObject, shadows, postFXSettings, (int)colorLUTResolution,
+			cameraRendererShader
 		);
 	}
 }

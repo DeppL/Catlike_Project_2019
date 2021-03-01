@@ -3,16 +3,17 @@ using UnityEngine;
 using UnityEngine.Experimental.GlobalIllumination;
 using LightType = UnityEngine.LightType;
 
-public partial class CustomRenderPipeline 
+partial class CustomRenderPipeline 
 {
     partial void InitializeForEditor ();
+    partial void DisposeForEditor();
 
 #if UNITY_EDITOR
     partial void InitializeForEditor() {
         Lightmapping.SetDelegate(lightsDelegate);
     }
-    protected override void Dispose(bool disposing) {
-        base.Dispose(disposing);
+    partial void DisposeForEditor() {
+        // base.Dispose(disposing);
         Lightmapping.ResetDelegate();
     }
     static Lightmapping.RequestLightsDelegate lightsDelegate =

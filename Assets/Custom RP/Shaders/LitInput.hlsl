@@ -13,14 +13,13 @@ TEXTURE2D(_DetailMap);
 TEXTURE2D(_DetailNormalMap);
 SAMPLER(sampler_DetailMap);
 
-
-
 UNITY_INSTANCING_BUFFER_START(UnityPerMaterial)
     UNITY_DEFINE_INSTANCED_PROP(float4, _BaseMap_ST)
     UNITY_DEFINE_INSTANCED_PROP(float4, _DetailMap_ST)
     UNITY_DEFINE_INSTANCED_PROP(float4, _BaseColor)
     UNITY_DEFINE_INSTANCED_PROP(float4, _EmissionColor)
     UNITY_DEFINE_INSTANCED_PROP(float, _Cutoff)
+    UNITY_DEFINE_INSTANCED_PROP(float, _ZWrite)
     UNITY_DEFINE_INSTANCED_PROP(float, _Metallic)
     UNITY_DEFINE_INSTANCED_PROP(float, _Occlusion)
     UNITY_DEFINE_INSTANCED_PROP(float, _Smoothness)
@@ -31,6 +30,23 @@ UNITY_INSTANCING_BUFFER_START(UnityPerMaterial)
     UNITY_DEFINE_INSTANCED_PROP(float, _DetailNormalScale)
 UNITY_INSTANCING_BUFFER_END(UnityPerMaterial)
 
+struct InputConfig {
+    Fragment fragment;
+    float2 baseUV;
+    float2 detailUV;
+	bool useMask;
+	bool useDetail;
+};
+
+InputConfig GetInputConfig (float4 positionSS, float2 baseUV, float2 detailUV = 0.0) {
+    InputConfig c;
+    c.fragment = GetFragment(positionSS);
+    c.baseUV = baseUV;
+    c.detailUV = detailUV;
+	c.useMask = false;
+	c.useDetail = false;
+    return c;
+}
 
 float2 TransformBaseUV (float2 baseUV) {
     float4 baseST = INPUT_PROP(_BaseMap_ST);
@@ -121,15 +137,12 @@ float3 GetNormalTS (InputConfig c) {
         float3 detail = DecodeNormal(map, scale);
         normal = BlendNormalRNM(normal, detail);
     }
-    
     return normal;
 }
 
-float3 NormalTangentToWorld (float3 normalTS, float3 normalWS, float4 tangentWS) {
-    float3x3 tangentToWorld = 
-        CreateTangentToWorld(normalWS, tangentWS.xyz, tangentWS.w);
-    return TransformTangentToWorld(normalTS, tangentToWorld);
+float GetFinalAlpha (float alpha)
+{
+    return INPUT_PROP(_ZWrite) ? 1.0 : alpha;
 }
-
 
 #endif
