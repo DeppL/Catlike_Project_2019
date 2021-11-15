@@ -2,6 +2,7 @@
 using UnityEngine.Rendering;
 public class MeshBall : MonoBehaviour {
 
+	const int BALL_COUNT_MAX = 1023;
 	static int
 		baseColorId = Shader.PropertyToID("_BaseColor"),
 		metallicId = Shader.PropertyToID("_Metallic"),
@@ -16,11 +17,11 @@ public class MeshBall : MonoBehaviour {
 	[SerializeField] 
 	LightProbeProxyVolume lightProbeVolume = null;
 	
-	Matrix4x4[] matrices = new Matrix4x4[1023];
-	Vector4[] baseColors = new Vector4[1023];
+	Matrix4x4[] matrices = new Matrix4x4[BALL_COUNT_MAX];
+	Vector4[] baseColors = new Vector4[BALL_COUNT_MAX];
 	float[]
-		metallic = new float[1023],
-		smoothness = new float[1023];
+		metallic = new float[BALL_COUNT_MAX],
+		smoothness = new float[BALL_COUNT_MAX];
 
 	MaterialPropertyBlock block;
 
@@ -52,20 +53,20 @@ public class MeshBall : MonoBehaviour {
 
 			if (!lightProbeVolume)
 			{
-				var postions = new Vector3[1023];
+				var postions = new Vector3[BALL_COUNT_MAX];
 				for (int i = 0; i < matrices.Length; i++)
 				{
 					postions[i] = matrices[i].GetColumn(3);
 				}
-				var lightProbes = new SphericalHarmonicsL2[1023];
-				var occlusionProbes = new Vector4[1023];
+				var lightProbes = new SphericalHarmonicsL2[BALL_COUNT_MAX];
+				var occlusionProbes = new Vector4[BALL_COUNT_MAX];
 				LightProbes.CalculateInterpolatedLightAndOcclusionProbes(postions, lightProbes, occlusionProbes);
 				block.CopySHCoefficientArraysFrom(lightProbes);
 				block.CopyProbeOcclusionArrayFrom(occlusionProbes);
 			}
 		}
 		Graphics.DrawMeshInstanced(
-			mesh, 0, material, matrices, 1023, block,
+			mesh, 0, material, matrices, BALL_COUNT_MAX, block,
 			ShadowCastingMode.On, true, 0, null, 
 			lightProbeVolume ? LightProbeUsage.UseProxyVolume : LightProbeUsage.CustomProvided,
 			lightProbeVolume
